@@ -524,3 +524,24 @@ You will receive a unique API key that you can use to authenticate your requests
 I also send you a detailed getting started guide to help you integrate the API into your workflows.
 
 If you have any questions or need further assistance, please don't hesitate to contact me at [info@freerouting.app](mailto:info@freerouting.app).
+
+---
+
+## Idle Timeout
+
+The API server supports an idle timeout that automatically shuts down the process after a configurable period of inactivity. This is useful for headless/plugin scenarios where Freerouting is launched on demand and should exit when no longer needed.
+
+### Configuration
+
+Set the `--api_server.idle_timeout` command-line argument (in seconds). A value of `0` (default) disables the timeout.
+
+```bash
+java -jar freerouting.jar --api_server.enabled=true --api_server.idle_timeout=3600
+```
+
+### Behavior
+
+- The timer resets on each meaningful API request (job submissions, routing results, session operations).
+- Health-check requests (`GET /v1/system/status`), OpenAPI/Swagger endpoints, and CORS preflight (`OPTIONS`) requests do **not** reset the timer.
+- When the timeout is reached, a 10-second grace period begins. If new meaningful activity occurs during this period, the shutdown is cancelled and the timer resets.
+- After the grace period, the process exits cleanly.

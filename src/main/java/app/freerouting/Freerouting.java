@@ -224,7 +224,7 @@ public class Freerouting {
     FRAnalytics.appClosed();
   }
 
-  public static Server InitializeAPI(ApiServerSettings apiServerSettings) {
+  public static Server InitializeAPI(ApiServerSettings apiServerSettings, Runnable onIdleTimeout) {
     // Check if there are any endpoints defined
     if (apiServerSettings.endpoints.length == 0) {
       FRLogger.warn("Can't start API server, because no endpoints are defined in ApiServerSettings.");
@@ -324,6 +324,41 @@ public class Freerouting {
         }
       }
     }).start();
+
+    // Start idle timeout watchdog if configured
+    Integer idleTimeout = apiServerSettings.idleTimeout;
+    if (idleTimeout != null && idleTimeout > 0 && onIdleTimeout != null) {
+      int timeoutSeconds = idleTimeout;
+      Thread watchdog = new Thread(() -> {
+        while (apiServerSettings.isRunning) {
+          try {
+            Thread.sleep(1000);
+          } catch (InterruptedException _) {
+            break;
+          }
+          long idleMs = System.currentTimeMillis() - app.freerouting.api.IdleTimeoutFilter.getLastActivityTime();
+          if (idleMs >= timeoutSeconds * 1000L) {
+            FRLogger.info("API server idle timeout reached (" + timeoutSeconds + "s), waiting 10s grace period");
+            try {
+              Thread.sleep(10_000);
+            } catch (InterruptedException _) {
+              break;
+            }
+            long idleMsAfterGrace = System.currentTimeMillis() - app.freerouting.api.IdleTimeoutFilter.getLastActivityTime();
+            if (idleMsAfterGrace < timeoutSeconds * 1000L) {
+              FRLogger.info("New activity detected during grace period, cancelling shutdown");
+              continue;
+            }
+            FRLogger.info("Grace period elapsed, shutting down");
+            onIdleTimeout.run();
+            break;
+          }
+        }
+      });
+      watchdog.setDaemon(true);
+      watchdog.setName("api-idle-timeout-watchdog");
+      watchdog.start();
+    }
 
     return apiServer;
   }
@@ -671,7 +706,9 @@ public class Freerouting {
 
     // Initialize the API server
     if (globalSettings.apiServerSettings.isEnabled) {
-      apiServer = InitializeAPI(globalSettings.apiServerSettings);
+      apiServer = InitializeAPI(globalSettings.apiServerSettings, () -> {
+        globalSettings.apiServerSettings.isRunning = false;
+      });
       globalSettings.apiServerSettings.isEnabled = apiServer != null;
       globalSettings.apiServerSettings.isRunning = apiServer != null;
     }
