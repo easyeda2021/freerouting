@@ -38,8 +38,14 @@ $JAVA_HOME/bin/jpackage --input ../../build/dist/ \
 echo "> Composing the distribution file"
 mv freerouting freerouting-$APP_VERSION-linux-x64
 cp ../../build/dist/LICENSE freerouting-$APP_VERSION-linux-x64/LICENSE
-mv ../../build/dist/freerouting-executable.jar freerouting-$APP_VERSION-executable.jar 
- 
+mv ../../build/dist/freerouting-executable.jar freerouting-$APP_VERSION-executable.jar
+
+echo "> Bundling URL protocol install scripts"
+mkdir -p freerouting-$APP_VERSION-linux-x64/install
+cp ../install/linux/freerouting-url-handler.desktop freerouting-$APP_VERSION-linux-x64/install/
+cp ../install/linux/install-url-protocol.sh freerouting-$APP_VERSION-linux-x64/install/
+chmod +x freerouting-$APP_VERSION-linux-x64/install/install-url-protocol.sh
+
 zip -r freerouting-$APP_VERSION-linux-x64.zip freerouting-$APP_VERSION-linux-x64
 
 

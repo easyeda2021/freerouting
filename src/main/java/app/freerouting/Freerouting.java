@@ -405,6 +405,18 @@ public class Freerouting {
    * @param args
    */
   void main(String[] args) {
+    // Parse freerouting:// URL into validated CLI args (before logging init)
+    String urlEndpoint = null;
+    if (args.length == 1 && UrlProtocolHandler.isProtocolUrl(args[0])) {
+      UrlProtocolHandler.UrlParseResult result = UrlProtocolHandler.parseProtocolUrl(args[0]);
+      if (!result.isValid()) {
+        System.err.println("Invalid freerouting:// URL: " + result.getErrorMessage());
+        System.exit(1);
+      }
+      args = result.getCliArgs();
+      urlEndpoint = result.getEndpoint();
+    }
+
     // CRITICAL: Set up logging configuration BEFORE any logging occurs
     // This must happen before FRLogger.traceEntry() or any other logging call
 
@@ -617,6 +629,11 @@ public class Freerouting {
 
     // parse the command line arguments (for the non-router settings)
     globalSettings.applyCommandLineArguments(args);
+
+    // Apply URL-sourced endpoint (String[] field can't be set via ReflectionUtil)
+    if (urlEndpoint != null) {
+      globalSettings.apiServerSettings.endpoints = new String[]{ urlEndpoint };
+    }
 
     FRLogger.debug("GUI Language: " + globalSettings.currentLocale);
 

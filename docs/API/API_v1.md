@@ -545,3 +545,73 @@ java -jar freerouting.jar --api_server.enabled=true --api_server.idle_timeout=36
 - Health-check requests (`GET /v1/system/status`), OpenAPI/Swagger endpoints, and CORS preflight (`OPTIONS`) requests do **not** reset the timer.
 - When the timeout is reached, a 10-second grace period begins. If new meaningful activity occurs during this period, the shutdown is cancelled and the timer resets.
 - After the grace period, the process exits cleanly.
+
+---
+
+## URL Protocol (`freerouting://`)
+
+Freerouting supports a custom URL protocol that allows browsers and external applications to launch Freerouting with validated parameters. The protocol uses a versioned semantic schema with an explicit parameter allowlist for security.
+
+### Format
+
+```
+freerouting://v1/<action>?<param>=<value>&<param>=<value>
+```
+
+- The scheme is `freerouting://`
+- `v1` is the protocol version (required)
+- `<action>` is a named action (required)
+- Query parameters are semantic names mapped to validated settings
+
+### Actions
+
+| Action | Description |
+|--------|-------------|
+| `start-api` | Launch Freerouting (optionally headless) with the API server |
+
+### Allowed Parameters (`start-api`)
+
+| Parameter | Description | Validation |
+|-----------|-------------|------------|
+| `gui` | Enable/disable GUI | `true` or `false` |
+| `api` | Enable/disable API server | `true` or `false` |
+| `endpoint` | API server listen address | `127.0.0.1:<port>` or `localhost:<port>`, port 1024-65535 |
+| `idle_timeout` | Auto-shutdown after N seconds of inactivity | Integer 0-86400 (0 = disabled) |
+| `cors_origins` | CORS allowed origins | Comma-separated `http(s)://host(:port)`, no wildcards |
+| `max_passes` | Maximum routing passes | Integer 1-9999 |
+| `max_threads` | Maximum routing threads | Integer 1-1024 |
+| `via_costs` | Via cost factor | Integer >= 1 |
+
+Unknown parameters are rejected. Parameters that could compromise security (e.g. authentication settings, file paths, debug/logging) are not exposed.
+
+The `endpoint` parameter only accepts `127.0.0.1` or `localhost` to prevent the API server from being exposed to the network.
+
+### Examples
+
+**Launch headless API server on default port:**
+
+```
+freerouting://v1/start-api?gui=false&api=true
+```
+
+**Launch with custom endpoint and idle timeout:**
+
+```
+freerouting://v1/start-api?gui=false&api=true&endpoint=127.0.0.1:37864&idle_timeout=3600
+```
+
+**Launch with CORS and router settings (note URL encoding):**
+
+```
+freerouting://v1/start-api?gui=false&api=true&cors_origins=https%3A%2F%2Fpro.easyeda.com&max_passes=200
+```
+
+### Platform Registration
+
+| Platform | Mechanism | Registered by |
+|----------|-----------|---------------|
+| **Windows** | Registry key `HKCU\Software\Classes\freerouting` | MSI installer (via WiX) |
+| **Linux** | `.desktop` file in `~/.local/share/applications/` | `install/install-url-protocol.sh` script |
+| **macOS** | `CFBundleURLTypes` in `Info.plist` | Not yet supported (requires signed builds) |
+
+On Windows, the MSI installer automatically registers and unregisters the protocol. On Linux, run the bundled `install-url-protocol.sh` script after extracting the distribution.

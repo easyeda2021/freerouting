@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Freerouting
+Exec=INSTALL_DIR/bin/freerouting %u
+MimeType=x-scheme-handler/freerouting;
+NoDisplay=true
